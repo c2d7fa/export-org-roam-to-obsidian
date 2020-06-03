@@ -1,5 +1,7 @@
 module Main where
 
+import Prelude hiding (readFile)
+
 import qualified System.Directory as Dir
 import qualified Data.Org as O
 import qualified Data.Text as T
@@ -7,6 +9,7 @@ import qualified Data.Map.Strict as M
 import qualified Data.List.NonEmpty as L
 import Data.List (stripPrefix, intercalate)
 import Data.Maybe (fromJust, maybe)
+import System.IO.Strict (readFile)
 
 type Titles = M.Map String String
 
@@ -135,11 +138,23 @@ markdown org = mdDoc $ O.orgDoc org
     ps :: [String] -> String
     ps paragraphs = intercalate "\n\n" paragraphs
 
+build :: Titles -> String -> String
+build titles orgSource =
+  markdown $ fixLinks titles $ fromJust $ O.org $ T.pack orgSource
+
+buildFiles :: Titles -> [(String, String)] -> [(String, String)]
+buildFiles titles fileContent = map buildFile fileContent
+  where
+    buildFile :: (String, String) -> (String, String)
+    buildFile (file, content) = (withDefault file $ M.lookup file titles, build titles content)
+
 inputDirectory = "input"
-testFile = "20200520225959-test.org"
+outputDirectory = "output"
 
 main :: IO ()
 main = do
   titles <- loadTitles inputDirectory
-  source <- readFile (inputDirectory ++ "/" ++ testFile)
-  putStrLn $ markdown $ fixLinks titles $ fromJust $ O.org (T.pack source)
+  files <- Dir.listDirectory inputDirectory
+  filesContent <- mapM (\file -> readFile (inputDirectory ++ "/" ++ file) >>= \content -> return (file, content)) files
+  let builtFiles = buildFiles titles filesContent
+  mapM_ (\(file, content) -> writeFile (outputDirectory ++ "/" ++ file ++ ".md") content) builtFiles
