@@ -7,7 +7,7 @@ import qualified Data.Org as O
 import qualified Data.Text as T
 import qualified Data.Map.Strict as M
 import qualified Data.List.NonEmpty as L
-import Data.List (stripPrefix, intercalate)
+import Data.List (stripPrefix, intercalate, isPrefixOf)
 import Data.Maybe (fromJust, maybe)
 import System.IO.Strict (readFile)
 
@@ -127,9 +127,10 @@ markdown org = mdDoc $ O.orgDoc org
         Just title ->
           if T.unpack url == T.unpack title then
             "[[" ++ T.unpack url ++ "]]"
-          else
+          else if "http://" `isPrefixOf` T.unpack url || "https://" `isPrefixOf` T.unpack url then
             "[" ++ T.unpack title ++ "](" ++ T.unpack url ++ ")"
-            -- TODO: Handle local links with titles
+          else
+            "[[" ++ T.unpack url ++ "|" ++ T.unpack url ++ "]]"
     mdWord (O.Image (O.URL url)) = "![" ++ T.unpack url ++ "]"
     mdWord (O.Tags _) = ""
     mdWord (O.Punct ch) = [ch]
